@@ -1,0 +1,11 @@
+name = "feedback"
+main = "worker.js"
+compatibility_date = "2024-09-25"
+
+[site]
+bucket = "./dist"
+
+[env.production]
+routes = [
+  { pattern = "feedback.devlab502.net", custom_domain = true }
+]
