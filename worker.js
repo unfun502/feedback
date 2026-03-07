@@ -1,9 +1,15 @@
 import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
+import manifestJSON from '__STATIC_CONTENT_MANIFEST';
+const assetManifest = JSON.parse(manifestJSON);
 
-addEventListener('fetch', (event) => {
-  event.respondWith(handleRequest(event));
-});
+// ── Image upload config ──────────────────────────────────────
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const EXT_MAP = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+const CDN_BASE = 'https://cdn.devlab502.net';
+const ALLOWED_ORIGIN = 'https://feedback.devlab502.net';
 
+// ── Security headers ─────────────────────────────────────────
 function buildCSP() {
   return [
     "default-src 'self'",
@@ -15,34 +21,111 @@ function buildCSP() {
   ].join('; ');
 }
 
-async function handleRequest(event) {
+function addSecurityHeaders(headers) {
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-Frame-Options', 'DENY');
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  headers.set('Content-Security-Policy', buildCSP());
+}
+
+// ── CORS helpers for upload endpoint ─────────────────────────
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+  };
+}
+
+function jsonResponse(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+  });
+}
+
+// ── Image upload handler ─────────────────────────────────────
+async function handleUpload(request, env) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders() });
+  }
+
+  if (request.method !== 'POST') {
+    return jsonResponse({ message: 'Method not allowed' }, 405);
+  }
+
   try {
-    const response = await getAssetFromKV(event);
+    const formData = await request.formData();
+    const file = formData.get('file');
+
+    if (!file || typeof file === 'string') {
+      return jsonResponse({ message: 'No file provided' }, 400);
+    }
+
+    if (!ALLOWED_TYPES.has(file.type)) {
+      return jsonResponse({ message: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP' }, 400);
+    }
+
+    if (file.size > MAX_SIZE) {
+      return jsonResponse({ message: 'File too large. Maximum 5MB.' }, 400);
+    }
+
+    const ext = EXT_MAP[file.type] || 'bin';
+    const key = `images/${crypto.randomUUID()}.${ext}`;
+
+    await env.UPLOADS.put(key, file.stream(), {
+      httpMetadata: { contentType: file.type },
+    });
+
+    return jsonResponse({ url: `${CDN_BASE}/${key}` });
+  } catch (err) {
+    return jsonResponse({ message: 'Upload failed' }, 500);
+  }
+}
+
+// ── Static asset serving ─────────────────────────────────────
+async function handleStaticAsset(request, env, ctx) {
+  const event = { request, waitUntil: ctx.waitUntil.bind(ctx) };
+  const options = {
+    ASSET_NAMESPACE: env.__STATIC_CONTENT,
+    ASSET_MANIFEST: assetManifest,
+  };
+
+  try {
+    const response = await getAssetFromKV(event, options);
     const headers = new Headers(response.headers);
-
-    headers.set('X-Content-Type-Options', 'nosniff');
-    headers.set('X-Frame-Options', 'DENY');
-    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    headers.set('Content-Security-Policy', buildCSP());
-
+    addSecurityHeaders(headers);
     return new Response(response.body, { status: response.status, headers });
-  } catch (e) {
+  } catch {
     // SPA fallback — serve index.html for client-side routing
     try {
-      const notFoundResponse = await getAssetFromKV(event, {
-        mapRequestToAsset: (req) =>
-          new Request(`${new URL(req.url).origin}/index.html`, req),
-      });
+      const fallbackEvent = {
+        request: new Request(`${new URL(request.url).origin}/index.html`, request),
+        waitUntil: ctx.waitUntil.bind(ctx),
+      };
+      const notFoundResponse = await getAssetFromKV(fallbackEvent, options);
       const headers = new Headers(notFoundResponse.headers);
-      headers.set('X-Content-Type-Options', 'nosniff');
-      headers.set('X-Frame-Options', 'DENY');
-      headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-      headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-      headers.set('Content-Security-Policy', buildCSP());
+      addSecurityHeaders(headers);
       return new Response(notFoundResponse.body, { status: 200, headers });
     } catch {
       return new Response('Not Found', { status: 404 });
     }
   }
 }
+
+// ── Main handler ─────────────────────────────────────────────
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // Route: /api/upload → image upload to R2
+    if (url.pathname === '/api/upload') {
+      return handleUpload(request, env);
+    }
+
+    // Everything else → static assets (SPA)
+    return handleStaticAsset(request, env, ctx);
+  },
+};

@@ -15,6 +15,10 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/devapi/, ''),
         secure: true,
       },
+      '/api/upload': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
     },
   },
 });

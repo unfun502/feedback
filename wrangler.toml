@@ -5,6 +5,10 @@ compatibility_date = "2024-09-25"
 [site]
 bucket = "./dist"
 
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "devlab502-uploads"
+
 [env.production]
 routes = [
   { pattern = "feedback.devlab502.net", custom_domain = true }

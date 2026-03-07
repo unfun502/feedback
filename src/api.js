@@ -111,6 +111,55 @@ export async function updatePostStatus(postId, status) {
   });
 }
 
+// ── Admin: delete post ────────────────────────────────────────
+
+export async function deletePost(postId) {
+  return request(`/posts?id=eq.${postId}`, {
+    method: 'DELETE',
+    admin: true,
+  });
+}
+
+// ── Admin: toggle pin ─────────────────────────────────────────
+
+export async function togglePin(postId, isPinned) {
+  return request(`/posts?id=eq.${postId}`, {
+    method: 'PATCH',
+    body: { is_pinned: !isPinned },
+    admin: true,
+  });
+}
+
+// ── Admin notes ───────────────────────────────────────────────
+
+export async function getAdminNotes(postId) {
+  return request(`/admin_notes?post_id=eq.${postId}&order=created_at.desc`, {
+    admin: true,
+  });
+}
+
+export async function createAdminNote(postId, note) {
+  return request('/admin_notes', {
+    method: 'POST',
+    body: { post_id: postId, note },
+    admin: true,
+  });
+}
+
+export async function updateAdminNote(noteId, note) {
+  return request(`/admin_notes?id=eq.${noteId}`, {
+    method: 'PATCH',
+    body: { note },
+    admin: true,
+  });
+}
+
+// ── Public: developer response (admin note visible to all) ────
+
+export async function getDevResponse(postId) {
+  return request(`/admin_notes?post_id=eq.${postId}&order=created_at.desc&limit=1`);
+}
+
 // ── Upvotes ──────────────────────────────────────────────────
 
 export async function upvotePost(postId, fingerprint) {
@@ -176,6 +225,27 @@ export async function getRoadmap({ appId } = {}) {
   return request(`/posts?${params.toString()}`);
 }
 
+// ── Image upload (to R2 via Worker endpoint) ────────────────
+
+export async function uploadImage(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData,
+    // No Content-Type header — browser sets multipart boundary
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || 'Upload failed');
+  }
+
+  const data = await res.json();
+  return data.url;
+}
+
 // ── Fingerprint (simple browser fingerprint for dedup) ────────
 
 export function getFingerprint() {
@@ -210,12 +280,19 @@ export const api = {
   getPost,
   createPost,
   updatePostStatus,
+  deletePost,
+  togglePin,
+  getAdminNotes,
+  createAdminNote,
+  updateAdminNote,
+  getDevResponse,
   upvotePost,
   hasUpvoted,
   getPollForPost,
   votePoll,
   getChangelog,
   getRoadmap,
+  uploadImage,
   getFingerprint,
 };
 

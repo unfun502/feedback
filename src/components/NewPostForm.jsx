@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../theme';
 import { HEADING, BODY, NUM } from '../utils';
 import ImageDropZone from './ImageDropZone';
 
-function NewPostForm({ apps, selectedApp, onClose, onSubmit }) {
+function NewPostForm({ apps, selectedApp, existingPosts, fingerprint, onClose, onSubmit }) {
   const { t } = useTheme();
   const [form, setForm] = useState({
     title: "", body: "", type: "general", authorName: "", authorEmail: "",
-    notifyOnUpdate: false, appId: selectedApp || apps[0]?.id || "",
+    notifyOnUpdate: false, appId: selectedApp || apps[0]?.id || "", website: "",
   });
   const [images, setImages] = useState([]);
   const [addPoll, setAddPoll] = useState(false);
@@ -15,6 +15,9 @@ function NewPostForm({ apps, selectedApp, onClose, onSubmit }) {
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+
+  // Bot protection: track when form was opened
+  const mountTimeRef = useRef(Date.now());
 
   useEffect(() => {
     const handleKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -31,14 +34,84 @@ function NewPostForm({ apps, selectedApp, onClose, onSubmit }) {
     fontFamily: BODY, fontSize: 12, fontWeight: 600, color: t.textMuted,
     textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "block",
   };
-  const canSubmit = form.title.trim().length > 0 && !submitting;
+  const canSubmit = form.title.trim().length > 0 && !submitting && !images.some(img => img.uploading);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     setSubmitError(null);
+
+    // ── Bot protection checks ──────────────────────────────
+    // 1. Honeypot: silently reject if hidden field filled
+    if (form.website.length > 0) {
+      setTimeout(() => onClose(), 800);
+      return;
+    }
+
+    // 2. Timing: silently reject if submitted too fast (< 3 seconds)
+    if (Date.now() - mountTimeRef.current < 3000) {
+      setTimeout(() => onClose(), 800);
+      return;
+    }
+
+    // 3. Rate limit: max 3 posts per 10 minutes per fingerprint
+    if (fingerprint) {
+      const RATE_KEY = 'feedback_submissions';
+      const RATE_WINDOW = 10 * 60 * 1000;
+      const RATE_LIMIT = 3;
+      const stored = JSON.parse(localStorage.getItem(RATE_KEY) || '{}');
+      const now = Date.now();
+      const fpSubmissions = (stored[fingerprint] || []).filter(ts => now - ts < RATE_WINDOW);
+      if (fpSubmissions.length >= RATE_LIMIT) {
+        setSubmitError("Too many submissions. Please try again in a few minutes.");
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // 4. URL count: reject if > 2 URLs in title + body
+    const urlRegex = /https?:\/\/[^\s]+/gi;
+    const urlCount = ((form.title || '').match(urlRegex) || []).length
+                   + ((form.body || '').match(urlRegex) || []).length;
+    if (urlCount > 2) {
+      setSubmitError("Too many links. Please reduce the number of URLs in your post.");
+      setSubmitting(false);
+      return;
+    }
+
+    // 5. Duplicate title: check against loaded posts
+    if (existingPosts && existingPosts.length > 0) {
+      const normalizedTitle = form.title.trim().toLowerCase();
+      const duplicate = existingPosts.find(p => p.title.toLowerCase().trim() === normalizedTitle);
+      if (duplicate) {
+        setSubmitError("A similar post already exists. Please search for existing feedback before posting.");
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // TURNSTILE: uncomment when site key is provisioned
+    // if (!turnstileToken) {
+    //   setSubmitError("Please complete the verification.");
+    //   setSubmitting(false);
+    //   return;
+    // }
+    // ── End bot protection ─────────────────────────────────
+
     try {
-      await onSubmit({ ...form, images, poll: addPoll ? { question: pollQuestion, options: pollOptions } : null });
+      // Extract uploaded URL strings only (filter out failed uploads)
+      const imageUrls = images.filter(img => img.url).map(img => img.url);
+      await onSubmit({ ...form, images: imageUrls, poll: addPoll ? { question: pollQuestion, options: pollOptions } : null });
+
+      // Record successful submission for rate limiting
+      if (fingerprint) {
+        const RATE_KEY = 'feedback_submissions';
+        const stored = JSON.parse(localStorage.getItem(RATE_KEY) || '{}');
+        const fpSubmissions = stored[fingerprint] || [];
+        fpSubmissions.push(Date.now());
+        stored[fingerprint] = fpSubmissions;
+        localStorage.setItem(RATE_KEY, JSON.stringify(stored));
+      }
     } catch (err) {
       setSubmitError(err.message || "Failed to submit. Please try again.");
       setSubmitting(false);
@@ -94,6 +167,13 @@ function NewPostForm({ apps, selectedApp, onClose, onSubmit }) {
               value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={inputStyle} />
           </div>
 
+          {/* Honeypot field — hidden from users, bots fill it */}
+          <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: 0, height: 0, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+            <label htmlFor="website">Website</label>
+            <input type="text" id="website" name="website" tabIndex={-1} autoComplete="off"
+              value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+          </div>
+
           <div>
             <label style={labelStyle}>Details</label>
             <textarea placeholder="Add more context, steps to reproduce, etc."
@@ -103,9 +183,7 @@ function NewPostForm({ apps, selectedApp, onClose, onSubmit }) {
 
           <div>
             <label style={labelStyle}>Screenshots</label>
-            <ImageDropZone images={images}
-              onAddImages={(newImgs) => setImages([...images, ...newImgs].slice(0, 5))}
-              onRemoveImage={(idx) => setImages(images.filter((_, i) => i !== idx))} />
+            <ImageDropZone images={images} onImagesChange={setImages} />
           </div>
 
           {/* Poll toggle */}
@@ -219,6 +297,12 @@ function NewPostForm({ apps, selectedApp, onClose, onSubmit }) {
               {submitError}
             </div>
           )}
+
+          {/* TURNSTILE: uncomment when site key is provisioned
+          <div style={{ marginBottom: 16 }}>
+            <div className="cf-turnstile" data-sitekey="YOUR_SITE_KEY_HERE" data-callback="onTurnstileVerify" data-theme="dark" />
+          </div>
+          */}
 
           <button disabled={!canSubmit} onClick={handleSubmit} style={{
             fontFamily: BODY, fontSize: 14, fontWeight: 600,

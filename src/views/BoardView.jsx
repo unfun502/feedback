@@ -57,7 +57,7 @@ function BoardView({ posts, apps, filters, loading, error, upvotedPosts, onFilte
 
       {!loading && !error && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-          {posts.map((post, i) => (
+          {[...posts].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0)).map((post, i) => (
             <div key={post.id} style={{ animation: `cardIn 0.4s ease ${i * 0.04}s both` }}>
               <FeedbackCard
                 post={post}

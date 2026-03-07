@@ -157,6 +157,31 @@ function FeedbackApp() {
     return success;
   }, [fingerprint]);
 
+  // ── Admin features ──────────────────────────────────────────
+  const isAdmin = Boolean(import.meta.env.VITE_ADMIN_JWT);
+
+  const handleStatusChange = useCallback(async (postId, newStatus) => {
+    await api.updatePostStatus(postId, newStatus);
+    setPosts((prev) => prev.map((p) =>
+      p.id === postId ? { ...p, status: newStatus } : p
+    ));
+    setSelectedPost((prev) => prev && prev.id === postId ? { ...prev, status: newStatus } : prev);
+  }, []);
+
+  const handleDelete = useCallback(async (postId) => {
+    await api.deletePost(postId);
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setSelectedPost(null);
+  }, []);
+
+  const handleTogglePin = useCallback(async (postId, currentlyPinned) => {
+    await api.togglePin(postId, currentlyPinned);
+    setPosts((prev) => prev.map((p) =>
+      p.id === postId ? { ...p, is_pinned: !currentlyPinned } : p
+    ));
+    setSelectedPost((prev) => prev && prev.id === postId ? { ...prev, is_pinned: !currentlyPinned } : prev);
+  }, []);
+
   return (
     <div style={{
       display: "flex", minHeight: "100vh", background: t.bg,
@@ -198,8 +223,12 @@ function FeedbackApp() {
           apps={apps}
           fingerprint={fingerprint}
           upvoted={upvotedPosts.has(selectedPost.id)}
+          isAdmin={isAdmin}
           onUpvote={handleUpvote}
           onPollVote={handlePollVote}
+          onStatusChange={handleStatusChange}
+          onDelete={handleDelete}
+          onTogglePin={handleTogglePin}
           onClose={() => setSelectedPost(null)}
         />
       )}
@@ -207,6 +236,8 @@ function FeedbackApp() {
         <NewPostForm
           apps={apps}
           selectedApp={selectedApp}
+          existingPosts={posts}
+          fingerprint={fingerprint}
           onClose={() => setShowNewPostForm(false)}
           onSubmit={async (data) => {
             await handleCreatePost(data);

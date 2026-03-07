@@ -39,7 +39,11 @@ function FeedbackCard({ post, apps, voted, onSelect, onUpvote }) {
           <div style={{
             fontFamily: HEADING, fontSize: 16, fontWeight: 600,
             color: t.text, lineHeight: 1.35, marginBottom: 6,
-          }}>{post.title}</div>
+            display: "flex", alignItems: "flex-start", gap: 6,
+          }}>
+            {post.is_pinned && <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }} title="Pinned">📌</span>}
+            <span>{post.title}</span>
+          </div>
           <div style={{
             fontFamily: BODY, fontSize: 13, color: t.textSecondary, lineHeight: 1.5,
             overflow: "hidden", display: "-webkit-box",
