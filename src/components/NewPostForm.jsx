@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../theme';
 import { HEADING, BODY, NUM } from '../utils';
-import { APPS } from '../constants';
 import ImageDropZone from './ImageDropZone';
 
-function NewPostForm({ selectedApp, onClose, onSubmit }) {
+function NewPostForm({ apps, selectedApp, onClose, onSubmit }) {
   const { t } = useTheme();
   const [form, setForm] = useState({
     title: "", body: "", type: "general", authorName: "", authorEmail: "",
-    notifyOnUpdate: false, appId: selectedApp || APPS[0].id,
+    notifyOnUpdate: false, appId: selectedApp || apps[0]?.id || "",
   });
   const [images, setImages] = useState([]);
   const [addPoll, setAddPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   useEffect(() => {
     const handleKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -30,7 +31,19 @@ function NewPostForm({ selectedApp, onClose, onSubmit }) {
     fontFamily: BODY, fontSize: 12, fontWeight: 600, color: t.textMuted,
     textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6, display: "block",
   };
-  const canSubmit = form.title.trim().length > 0;
+  const canSubmit = form.title.trim().length > 0 && !submitting;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await onSubmit({ ...form, images, poll: addPoll ? { question: pollQuestion, options: pollOptions } : null });
+    } catch (err) {
+      setSubmitError(err.message || "Failed to submit. Please try again.");
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div onClick={onClose} style={{
@@ -62,7 +75,7 @@ function NewPostForm({ selectedApp, onClose, onSubmit }) {
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>App</label>
               <select value={form.appId} onChange={(e) => setForm({ ...form, appId: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>
-                {APPS.map((a) => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
+                {apps.map((a) => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
               </select>
             </div>
             <div style={{ flex: 1 }}>
@@ -197,17 +210,25 @@ function NewPostForm({ selectedApp, onClose, onSubmit }) {
             </div>
           )}
 
-          <button disabled={!canSubmit} onClick={() => {
-            onSubmit({ ...form, images, poll: addPoll ? { question: pollQuestion, options: pollOptions } : null });
-            onClose();
-          }} style={{
+          {submitError && (
+            <div style={{
+              fontFamily: BODY, fontSize: 13, color: "#ef4444",
+              background: "#ef444415", padding: "10px 14px", borderRadius: 10,
+              border: "1px solid #ef444430",
+            }}>
+              {submitError}
+            </div>
+          )}
+
+          <button disabled={!canSubmit} onClick={handleSubmit} style={{
             fontFamily: BODY, fontSize: 14, fontWeight: 600,
             padding: "12px 24px", border: "none", borderRadius: 12,
             background: canSubmit ? t.btnPrimaryBg : t.btnSecondaryBg,
             color: canSubmit ? t.btnPrimaryText : t.textFaint,
             cursor: canSubmit ? "pointer" : "not-allowed",
             transition: "all 0.2s ease", width: "100%",
-          }}>Post Feedback</button>
+            opacity: submitting ? 0.7 : 1,
+          }}>{submitting ? "Posting..." : "Post Feedback"}</button>
         </div>
       </div>
     </div>

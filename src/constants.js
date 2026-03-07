@@ -1,7 +1,7 @@
 export const APPS = [
-  { id: "1", name: "Arsenal Report", slug: "arsenal-report", accent: "#ef4444", emoji: "📊" },
-  { id: "2", name: "FLW Map", slug: "flwmap", accent: "#10b981", emoji: "🗺️" },
-  { id: "3", name: "Countdown", slug: "countdown", accent: "#f59e0b", emoji: "⏱️" },
+  { id: "b77259bc-ad24-4378-9444-56c89945dd44", name: "Arsenal Report", slug: "arsenal-report", accent: "#ef4444", emoji: "📊" },
+  { id: "26c0f7fc-3618-49d5-a3b6-7e4823da8472", name: "FLW Map", slug: "flwmap", accent: "#10b981", emoji: "🗺️" },
+  { id: "6bfd2e52-cd74-4e9e-8a86-a370250bf11f", name: "Countdown", slug: "countdown", accent: "#f59e0b", emoji: "⏱️" },
 ];
 
 export const STATUSES = ["new", "reviewing", "planned", "in_progress", "done", "declined"];

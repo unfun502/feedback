@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useTheme } from '../theme';
 import { HEADING, BODY } from '../utils';
-import { APPS } from '../constants';
 
-function Sidebar({ selectedApp, onSelectApp, collapsed, onToggleCollapse }) {
+function Sidebar({ apps, selectedApp, onSelectApp, collapsed, onToggleCollapse }) {
   const { t } = useTheme();
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -64,7 +63,7 @@ function Sidebar({ selectedApp, onSelectApp, collapsed, onToggleCollapse }) {
 
       <div style={{ height: 1, background: t.sidebarBorder, margin: "12px 0" }} />
 
-      {APPS.map((app) => (
+      {apps.map((app) => (
         <div key={app.id} style={itemStyle(app.id, selectedApp === app.id)}
           onClick={() => onSelectApp(app.id)}
           onMouseEnter={() => setHoveredItem(app.id)}

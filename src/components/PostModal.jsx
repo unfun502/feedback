@@ -1,21 +1,54 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../theme';
 import { HEADING, BODY, NUM, timeAgo } from '../utils';
-import { APPS } from '../constants';
+import api from '../api';
 import TypeBadge from './TypeBadge';
 import StatusBadge from './StatusBadge';
 import ImageGallery from './ImageGallery';
 import PollDisplay from './PollDisplay';
+import UpvoteButton from './UpvoteButton';
 
-function PostModal({ post, onClose }) {
+function PostModal({ post, apps, fingerprint, upvoted, onUpvote, onPollVote, onClose }) {
   const { t } = useTheme();
-  const app = APPS.find((a) => a.id === post.app_id);
+  const app = apps.find((a) => a.id === post.app_id);
+  const [poll, setPoll] = useState(null);
+  const [pollLoading, setPollLoading] = useState(true);
 
   useEffect(() => {
     const handleKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
+
+  // Fetch poll for this post
+  useEffect(() => {
+    let cancelled = false;
+    setPollLoading(true);
+    api.getPollForPost(post.id)
+      .then((data) => {
+        if (cancelled) return;
+        if (data) {
+          // Normalize API shape to what PollDisplay expects
+          setPoll({
+            ...data,
+            options: (data.poll_options || []).map((o) => ({
+              id: o.id,
+              label: o.label,
+              votes: o.vote_count ?? 0,
+            })),
+          });
+        } else {
+          setPoll(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPoll(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPollLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [post.id]);
 
   return (
     <div onClick={onClose} style={{
@@ -60,7 +93,10 @@ function PostModal({ post, onClose }) {
         }}>{post.body}</p>
 
         <ImageGallery images={post.images} />
-        <PollDisplay poll={post.poll} />
+
+        {!pollLoading && poll && (
+          <PollDisplay poll={poll} onVote={onPollVote} />
+        )}
 
         {post.tags?.length > 0 && (
           <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
@@ -95,12 +131,8 @@ function PostModal({ post, onClose }) {
               </>
             )}
           </div>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 4,
-            fontFamily: NUM, fontWeight: 600, fontSize: 14, color: t.text,
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
-            {post.upvote_count}
+          <div onClick={(e) => e.stopPropagation()}>
+            <UpvoteButton count={post.upvote_count} voted={upvoted} onVote={() => onUpvote && onUpvote(post.id)} />
           </div>
         </div>
       </div>

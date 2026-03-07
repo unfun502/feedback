@@ -7,4 +7,14 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
+  server: {
+    proxy: {
+      '/devapi': {
+        target: 'https://api.devlab502.net',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/devapi/, ''),
+        secure: true,
+      },
+    },
+  },
 });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTheme } from '../theme';
 import { NUM, BODY } from '../utils';
 
-function PollDisplay({ poll, compact = false }) {
+function PollDisplay({ poll, compact = false, onVote }) {
   const { t } = useTheme();
   const [votedOption, setVotedOption] = useState(null);
 
@@ -55,7 +55,13 @@ function PollDisplay({ poll, compact = false }) {
           return (
             <button
               key={opt.id}
-              onClick={(e) => { e.stopPropagation(); if (!hasVoted) setVotedOption(opt.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!hasVoted) {
+                  setVotedOption(opt.id);
+                  if (onVote) onVote(opt.id);
+                }
+              }}
               disabled={hasVoted}
               style={{
                 position: "relative", padding: "10px 14px", borderRadius: 10,

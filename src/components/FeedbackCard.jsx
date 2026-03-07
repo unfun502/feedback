@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import { useTheme } from '../theme';
 import { HEADING, BODY, NUM, timeAgo } from '../utils';
-import { APPS } from '../constants';
 import UpvoteButton from './UpvoteButton';
 import TypeBadge from './TypeBadge';
 import StatusBadge from './StatusBadge';
 import PollDisplay from './PollDisplay';
 import ImageGallery from './ImageGallery';
 
-function FeedbackCard({ post, onSelect }) {
+function FeedbackCard({ post, apps, voted, onSelect, onUpvote }) {
   const { t } = useTheme();
   const [hovered, setHovered] = useState(false);
-  const [voted, setVoted] = useState(false);
-  const app = APPS.find((a) => a.id === post.app_id);
+  const app = apps.find((a) => a.id === post.app_id);
 
   return (
     <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
@@ -30,7 +28,7 @@ function FeedbackCard({ post, onSelect }) {
       }} />
       <div style={{ padding: "16px 18px", display: "flex", gap: 12, flex: 1 }}>
         <div onClick={(e) => e.stopPropagation()}>
-          <UpvoteButton count={post.upvote_count} voted={voted} onVote={() => setVoted(!voted)} />
+          <UpvoteButton count={post.upvote_count} voted={voted} onVote={() => onUpvote && onUpvote(post.id)} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
