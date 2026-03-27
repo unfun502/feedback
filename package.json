@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@cloudflare/kv-asset-handler": "^0.4.2",
+    "@sentry/react": "^10.46.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

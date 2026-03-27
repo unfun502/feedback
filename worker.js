@@ -13,11 +13,11 @@ const ALLOWED_ORIGIN = 'https://feedback.devlab502.net';
 function buildCSP() {
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline' https://analytics.devlab502.net",
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
     "font-src fonts.gstatic.com",
     "img-src 'self' cdn.devlab502.net data: blob:",
-    "connect-src 'self' https://api.devlab502.net",
+    "connect-src 'self' https://api.devlab502.net https://analytics.devlab502.net https://*.ingest.us.sentry.io",
   ].join('; ');
 }
 
@@ -97,7 +97,7 @@ async function handleStaticAsset(request, env, ctx) {
     const response = await getAssetFromKV(event, options);
     const headers = new Headers(response.headers);
     addSecurityHeaders(headers);
-    return new Response(response.body, { status: response.status, headers });
+    return injectAnalytics(new Response(response.body, { status: response.status, headers }), env);
   } catch {
     // SPA fallback — serve index.html for client-side routing
     try {
@@ -108,11 +108,26 @@ async function handleStaticAsset(request, env, ctx) {
       const notFoundResponse = await getAssetFromKV(fallbackEvent, options);
       const headers = new Headers(notFoundResponse.headers);
       addSecurityHeaders(headers);
-      return new Response(notFoundResponse.body, { status: 200, headers });
+      return injectAnalytics(new Response(notFoundResponse.body, { status: 200, headers }), env);
     } catch {
       return new Response('Not Found', { status: 404 });
     }
   }
+}
+
+// ── Analytics injection ──────────────────────────────────────
+function injectAnalytics(response, env) {
+  const ct = response.headers.get('content-type') || ''
+  if (ct.includes('text/html') && env.UMAMI_SITE_ID) {
+    return new HTMLRewriter()
+      .on('head', {
+        element(el) {
+          el.append(`<script defer src="https://analytics.devlab502.net/script.js" data-website-id="${env.UMAMI_SITE_ID}"></script>`, { html: true })
+        }
+      })
+      .transform(response)
+  }
+  return response
 }
 
 // ── Main handler ─────────────────────────────────────────────
