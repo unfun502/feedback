@@ -54,8 +54,20 @@ async function request(path, options = {}) {
 
 // ── Apps ─────────────────────────────────────────────────────
 
-export async function getApps() {
-  return request('/apps?order=name.asc&is_archived=is.false');
+export async function getApps({ isAdmin = false } = {}) {
+  let url = '/apps?order=name.asc&is_archived=is.false';
+  if (!isAdmin) url += '&is_admin_only=is.false';
+  return request(url);
+}
+
+// ── Admin: update app properties ────────────────────────────
+
+export async function updateApp(appId, fields) {
+  return request(`/apps?id=eq.${appId}`, {
+    method: 'PATCH',
+    body: fields,
+    admin: true,
+  });
 }
 
 // ── Posts ─────────────────────────────────────────────────────
@@ -276,6 +288,7 @@ export function getFingerprint() {
 
 export const api = {
   getApps,
+  updateApp,
   getPosts,
   getPost,
   createPost,

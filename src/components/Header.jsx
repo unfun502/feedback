@@ -1,12 +1,11 @@
 import { useTheme } from '../theme';
 import { HEADING, BODY } from '../utils';
-import { APPS } from '../constants';
 import ViewSwitcher from './ViewSwitcher';
 import ThemeToggle from './ThemeToggle';
 
-function Header({ view, onViewChange, selectedApp }) {
+function Header({ view, onViewChange, selectedApp, apps }) {
   const { t } = useTheme();
-  const app = selectedApp ? APPS.find((a) => a.id === selectedApp) : null;
+  const app = selectedApp ? apps.find((a) => a.id === selectedApp) : null;
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, gap: 16, flexWrap: "wrap" }}>
       <div>
@@ -18,7 +17,7 @@ function Header({ view, onViewChange, selectedApp }) {
           {app ? <><span style={{ fontSize: 26 }}>{app.emoji}</span>{app.name}</> : "All Feedback"}
         </h1>
         <p style={{ fontFamily: BODY, fontSize: 14, color: t.textMuted, margin: "4px 0 0 0" }}>
-          {app ? `Bug reports, features & feedback for ${app.name}` : "Feedback across all apps"}
+          {app ? <>Bug reports, features & feedback for <a href={app.url} target="_blank" rel="noopener noreferrer" style={{ color: app.accent, textDecoration: "none", fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"} onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}>{app.name}</a></> : "Feedback across all apps"}
         </p>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

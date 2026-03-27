@@ -3,7 +3,7 @@ import { useTheme } from '../theme';
 import { HEADING, BODY, NUM } from '../utils';
 import ImageDropZone from './ImageDropZone';
 
-function NewPostForm({ apps, selectedApp, existingPosts, fingerprint, onClose, onSubmit }) {
+function NewPostForm({ apps, selectedApp, existingPosts, fingerprint, isAdmin, onClose, onSubmit }) {
   const { t } = useTheme();
   const [form, setForm] = useState({
     title: "", body: "", type: "general", authorName: "", authorEmail: "",
@@ -41,24 +41,26 @@ function NewPostForm({ apps, selectedApp, existingPosts, fingerprint, onClose, o
     setSubmitting(true);
     setSubmitError(null);
 
-    // ── Bot protection checks ──────────────────────────────
-    // 1. Honeypot: silently reject if hidden field filled
-    if (form.website.length > 0) {
-      setTimeout(() => onClose(), 800);
-      return;
+    // ── Bot protection checks (skipped for admin) ─────────
+    if (!isAdmin) {
+      // 1. Honeypot: silently reject if hidden field filled
+      if (form.website.length > 0) {
+        setTimeout(() => onClose(), 800);
+        return;
+      }
+
+      // 2. Timing: silently reject if submitted too fast (< 3 seconds)
+      if (Date.now() - mountTimeRef.current < 3000) {
+        setTimeout(() => onClose(), 800);
+        return;
+      }
     }
 
-    // 2. Timing: silently reject if submitted too fast (< 3 seconds)
-    if (Date.now() - mountTimeRef.current < 3000) {
-      setTimeout(() => onClose(), 800);
-      return;
-    }
-
-    // 3. Rate limit: max 3 posts per 10 minutes per fingerprint
-    if (fingerprint) {
+    // 3. Rate limit: max 5 posts per 10 minutes per fingerprint (skipped for admin)
+    if (fingerprint && !isAdmin) {
       const RATE_KEY = 'feedback_submissions';
       const RATE_WINDOW = 10 * 60 * 1000;
-      const RATE_LIMIT = 3;
+      const RATE_LIMIT = 5;
       const stored = JSON.parse(localStorage.getItem(RATE_KEY) || '{}');
       const now = Date.now();
       const fpSubmissions = (stored[fingerprint] || []).filter(ts => now - ts < RATE_WINDOW);
@@ -69,24 +71,26 @@ function NewPostForm({ apps, selectedApp, existingPosts, fingerprint, onClose, o
       }
     }
 
-    // 4. URL count: reject if > 2 URLs in title + body
-    const urlRegex = /https?:\/\/[^\s]+/gi;
-    const urlCount = ((form.title || '').match(urlRegex) || []).length
-                   + ((form.body || '').match(urlRegex) || []).length;
-    if (urlCount > 2) {
-      setSubmitError("Too many links. Please reduce the number of URLs in your post.");
-      setSubmitting(false);
-      return;
-    }
-
-    // 5. Duplicate title: check against loaded posts
-    if (existingPosts && existingPosts.length > 0) {
-      const normalizedTitle = form.title.trim().toLowerCase();
-      const duplicate = existingPosts.find(p => p.title.toLowerCase().trim() === normalizedTitle);
-      if (duplicate) {
-        setSubmitError("A similar post already exists. Please search for existing feedback before posting.");
+    if (!isAdmin) {
+      // 4. URL count: reject if > 2 URLs in title + body
+      const urlRegex = /https?:\/\/[^\s]+/gi;
+      const urlCount = ((form.title || '').match(urlRegex) || []).length
+                     + ((form.body || '').match(urlRegex) || []).length;
+      if (urlCount > 2) {
+        setSubmitError("Too many links. Please reduce the number of URLs in your post.");
         setSubmitting(false);
         return;
+      }
+
+      // 5. Duplicate title: check against loaded posts
+      if (existingPosts && existingPosts.length > 0) {
+        const normalizedTitle = form.title.trim().toLowerCase();
+        const duplicate = existingPosts.find(p => p.title.toLowerCase().trim() === normalizedTitle);
+        if (duplicate) {
+          setSubmitError("A similar post already exists. Please search for existing feedback before posting.");
+          setSubmitting(false);
+          return;
+        }
       }
     }
 

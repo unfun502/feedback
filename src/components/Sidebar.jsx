@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTheme } from '../theme';
 import { HEADING, BODY } from '../utils';
 
-function Sidebar({ apps, selectedApp, onSelectApp, collapsed, onToggleCollapse }) {
+function Sidebar({ apps, selectedApp, onSelectApp, collapsed, onToggleCollapse, isAdmin, onToggleAdminOnly }) {
   const { t } = useTheme();
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -70,7 +70,38 @@ function Sidebar({ apps, selectedApp, onSelectApp, collapsed, onToggleCollapse }
           onMouseLeave={() => setHoveredItem(null)}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>{app.emoji}</span>
           {!collapsed && <span>{app.name}</span>}
-          {!collapsed && selectedApp === app.id && (
+          {!collapsed && app.is_admin_only && isAdmin && hoveredItem !== app.id && (
+            <span title="Admin only" style={{ marginLeft: 4, opacity: 0.5, fontSize: 11, flexShrink: 0 }}>🔒</span>
+          )}
+          {!collapsed && isAdmin && hoveredItem === app.id && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleAdminOnly(app.id, app.is_admin_only); }}
+              title={app.is_admin_only ? "Make public" : "Make admin-only"}
+              style={{
+                background: "none", border: "none",
+                color: app.is_admin_only ? "#f59e0b" : t.sidebarText,
+                cursor: "pointer", padding: 2, marginLeft: "auto",
+                display: "flex", alignItems: "center", opacity: 0.7,
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.7"; }}
+            >
+              {app.is_admin_only ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              )}
+            </button>
+          )}
+          {!collapsed && selectedApp === app.id && !(isAdmin && hoveredItem === app.id) && (
             <div style={{
               width: 8, height: 8, borderRadius: "50%",
               background: app.accent, marginLeft: "auto", flexShrink: 0,
@@ -80,6 +111,30 @@ function Sidebar({ apps, selectedApp, onSelectApp, collapsed, onToggleCollapse }
       ))}
 
       <div style={{ flex: 1 }} />
+      {isAdmin && (
+        <a
+          href="https://analytics.devlab502.net"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "flex", alignItems: "center", gap: collapsed ? 0 : 10,
+            justifyContent: collapsed ? "center" : "flex-start",
+            padding: collapsed ? "10px 0" : "10px 16px",
+            borderRadius: 10, cursor: "pointer",
+            color: t.sidebarText, fontFamily: BODY, fontSize: 13,
+            textDecoration: "none", transition: "all 0.2s ease",
+            marginBottom: 8,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "#fafaf9"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = t.sidebarText; }}
+          title="Analytics Dashboard"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
+          </svg>
+          {!collapsed && <span>Analytics</span>}
+        </a>
+      )}
       {!collapsed && (
         <div style={{ fontFamily: BODY, fontSize: 12, color: t.sidebarText, opacity: 0.5, padding: "8px 4px" }}>
           feedback.devlab502.net

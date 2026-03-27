@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ThemeProvider, useTheme } from './theme';
 import { BODY } from './utils';
 import { APPS as FALLBACK_APPS } from './constants';
@@ -13,6 +13,8 @@ import ChangelogView from './views/ChangelogView';
 
 function FeedbackApp() {
   const { t } = useTheme();
+  const isAdmin = Boolean(import.meta.env.VITE_ADMIN_JWT);
+
   const [selectedApp, setSelectedApp] = useState(null);
   const [view, setView] = useState("board");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -21,7 +23,9 @@ function FeedbackApp() {
   const [filters, setFilters] = useState({ search: "", type: "all", status: "all", sort: "newest" });
 
   // API-driven state
-  const [apps, setApps] = useState(FALLBACK_APPS);
+  const [apps, setApps] = useState(
+    isAdmin ? FALLBACK_APPS : FALLBACK_APPS.filter(a => !a.is_admin_only)
+  );
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,20 +35,37 @@ function FeedbackApp() {
   // Debounce ref for search
   const searchTimerRef = useRef(null);
 
+  // Set of visible app IDs for filtering posts in "All Apps" view
+  const visibleAppIds = useMemo(() => new Set(apps.map(a => a.id)), [apps]);
+
+  // Apply URL params on mount (?app_id=UUID&sidebar=collapsed)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const appId = params.get('app_id');
+    if (appId) setSelectedApp(appId);
+    if (params.get('sidebar') === 'collapsed') setSidebarCollapsed(true);
+  }, []);
+
   // Initialize fingerprint and fetch apps on mount
   useEffect(() => {
     const fp = api.getFingerprint();
     setFingerprint(fp);
 
-    api.getApps()
+    api.getApps({ isAdmin })
       .then((data) => {
         if (data && data.length > 0) {
-          setApps(data.map((a) => ({
+          const slugToUrl = (s) => {
+              const overrides = {};
+              return `https://${overrides[s] || s}.devlab502.net`;
+            };
+            setApps(data.map((a) => ({
             id: a.id,
             name: a.name,
             slug: a.slug,
+            url: slugToUrl(a.slug),
             accent: a.accent_color || '#6366f1',
             emoji: a.icon_emoji || '📦',
+            is_admin_only: a.is_admin_only || false,
           })));
         }
       })
@@ -92,6 +113,12 @@ function FeedbackApp() {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, [fetchPosts]);
+
+  // Filter posts: in "All Apps" view, exclude posts from admin-only apps for non-admin
+  const visiblePosts = useMemo(() => {
+    if (selectedApp) return posts;
+    return posts.filter(p => visibleAppIds.has(p.app_id));
+  }, [posts, selectedApp, visibleAppIds]);
 
   // Upvote handler
   const handleUpvote = useCallback(async (postId) => {
@@ -158,8 +185,6 @@ function FeedbackApp() {
   }, [fingerprint]);
 
   // ── Admin features ──────────────────────────────────────────
-  const isAdmin = Boolean(import.meta.env.VITE_ADMIN_JWT);
-
   const handleStatusChange = useCallback(async (postId, newStatus) => {
     await api.updatePostStatus(postId, newStatus);
     setPosts((prev) => prev.map((p) =>
@@ -182,20 +207,28 @@ function FeedbackApp() {
     setSelectedPost((prev) => prev && prev.id === postId ? { ...prev, is_pinned: !currentlyPinned } : prev);
   }, []);
 
+  const handleToggleAdminOnly = useCallback(async (appId, currentValue) => {
+    await api.updateApp(appId, { is_admin_only: !currentValue });
+    setApps((prev) => prev.map((a) =>
+      a.id === appId ? { ...a, is_admin_only: !currentValue } : a
+    ));
+  }, []);
+
   return (
     <div style={{
       display: "flex", minHeight: "100vh", background: t.bg,
       fontFamily: BODY, transition: "background 0.4s ease, color 0.4s ease",
     }}>
       <Sidebar apps={apps} selectedApp={selectedApp} onSelectApp={setSelectedApp}
-        collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
+        collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isAdmin={isAdmin} onToggleAdminOnly={handleToggleAdminOnly} />
 
       <main style={{ flex: 1, padding: "32px 36px", maxWidth: 1100, overflow: "auto" }}>
-        <Header view={view} onViewChange={setView} selectedApp={selectedApp} />
+        <Header view={view} onViewChange={setView} selectedApp={selectedApp} apps={apps} />
 
         {view === "board" && (
           <BoardView
-            posts={posts}
+            posts={visiblePosts}
             apps={apps}
             filters={filters}
             loading={loading}
@@ -210,10 +243,10 @@ function FeedbackApp() {
         )}
 
         {view === "roadmap" && (
-          <RoadmapView posts={posts} apps={apps} loading={loading} />
+          <RoadmapView posts={visiblePosts} apps={apps} loading={loading} />
         )}
         {view === "changelog" && (
-          <ChangelogView posts={posts} apps={apps} loading={loading} />
+          <ChangelogView posts={visiblePosts} apps={apps} loading={loading} />
         )}
       </main>
 
@@ -236,8 +269,9 @@ function FeedbackApp() {
         <NewPostForm
           apps={apps}
           selectedApp={selectedApp}
-          existingPosts={posts}
+          existingPosts={visiblePosts}
           fingerprint={fingerprint}
+          isAdmin={isAdmin}
           onClose={() => setShowNewPostForm(false)}
           onSubmit={async (data) => {
             await handleCreatePost(data);

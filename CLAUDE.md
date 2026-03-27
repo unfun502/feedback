@@ -2,7 +2,7 @@
 
 ## What Is This Project
 
-Feedback is a self-hosted bug report and feature request app for devlab502 projects. Users of my apps (Arsenal Report, FLW Map, Countdown) visit Feedback to submit bugs, request features, upvote existing posts, and vote in polls. I (the admin) use a single dashboard to triage feedback across all apps.
+Feedback is a self-hosted bug report and feature request app for devlab502 projects. Users of all 10 devlab502 apps visit Feedback to submit bugs, request features, upvote existing posts, and vote in polls. I (the admin) use a single dashboard to triage feedback across all apps.
 
 This is NOT a social platform. No comments, no threads, no user profiles, no signup required. It's a one-way feedback funnel: users submit → I review and act.
 
@@ -57,6 +57,9 @@ PATCH /posts?id=eq.UUID  Authorization: Bearer <JWT>  { status: "planned" }
 
 Tables: `apps`, `posts`, `upvotes`, `polls`, `poll_options`, `poll_votes`, `admin_notes`, `notification_settings`, `notification_log`
 
+Key columns on `apps`:
+- `id` UUID (PK), `name`, `slug`, `description`, `accent_color`, `icon_emoji`, `is_archived` (bool), `is_admin_only` (bool, default FALSE)
+
 Key columns on `posts`:
 - `id` UUID (PK), `app_id` UUID (FK → apps), `type` enum (bug/feature/general), `status` enum (new/reviewing/planned/in_progress/done/declined)
 - `title`, `body`, `author_name`, `author_email`, `upvote_count` (auto-incremented by trigger), `is_pinned`, `tags` TEXT[], `images` TEXT[]
@@ -99,8 +102,15 @@ The palette is based on Tailwind's Stone scale. NOT pure black/white. Warm under
 
 **App accent colors**:
 - Arsenal Report: #ef4444 (red) 📊
-- FLW Map: #10b981 (emerald) 🗺️
+- BachWatch: #ec4899 (pink) 🌹
+- Café LOUIE: #92400e (amber-800) 📖
 - Countdown: #f59e0b (amber) ⏱️
+- Favs: #eab308 (yellow) ⭐
+- Feedback: #6366f1 (indigo) 💬
+- FLW Map: #10b981 (emerald) 🏠
+- HighLife: #8b5cf6 (violet) 🍺
+- Piping: #0ea5e9 (sky) 🔧
+- Portfolio: #14b8a6 (teal) 💼
 
 **Status colors**:
 - New: #3b82f6 (blue)
@@ -146,6 +156,14 @@ Switcher: pill-style toggle in header (Board / Roadmap / Changelog)
 - Search across title and body
 - Filter by type, status, sort by newest/oldest/top voted
 - Dark mode default with light mode toggle
+- Admin-only apps: hide specific apps from public sidebar, forms, and views
+
+## Admin-Only Apps
+
+The `apps` table has an `is_admin_only` column (boolean, default FALSE).
+- **Non-admin users**: API returns only `is_admin_only=false` apps. Posts from admin-only apps are filtered client-side in the "All Apps" view.
+- **Admin users**: See all apps. Admin-only apps show a lock icon in the sidebar. Hover any sidebar app to reveal a visibility toggle (eye icon) to change its admin-only status.
+- **When adding a new devlab502 app**: Always INSERT it into the `apps` table on VPS and update `constants.js` FALLBACK_APPS.
 
 ## Bot Protection
 

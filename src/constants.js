@@ -11,6 +11,7 @@ export const APPS = [
   { id: "80429be0-1f69-4ac2-915a-45651487c57e", name: "MockingBets", slug: "mockingbets", url: "https://mockingbets.devlab502.net", accent: "#b5ff4d", emoji: "🎰", is_admin_only: false },
   { id: "893257f9-cd79-43b0-94f3-8f52258e4e82", name: "Piping", slug: "piping", url: "https://piping.devlab502.net", accent: "#0ea5e9", emoji: "🔧", is_admin_only: false },
   { id: "1dddfa03-3b44-4fed-9aa6-a32054ade1bf", name: "Portfolio", slug: "portfolio", url: "https://portfolio.devlab502.net", accent: "#14b8a6", emoji: "💼", is_admin_only: false },
+  { id: "9cb6ea64-2533-495b-91de-370ddacc4737", name: "Seisin", slug: "seisin", url: "https://seisin.devlab502.net", accent: "#2D4A3E", emoji: "🏺", is_admin_only: false },
 ];
 
 export const STATUSES = ["new", "reviewing", "planned", "in_progress", "done", "declined"];

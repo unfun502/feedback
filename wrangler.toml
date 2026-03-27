@@ -5,6 +5,9 @@ compatibility_date = "2024-09-25"
 [site]
 bucket = "./dist"
 
+[vars]
+UMAMI_SITE_ID = "5aa66ec5-3a45-4449-bb89-17e092da725c"
+
 [[r2_buckets]]
 binding = "UPLOADS"
 bucket_name = "devlab502-uploads"
@@ -13,3 +16,6 @@ bucket_name = "devlab502-uploads"
 routes = [
   { pattern = "feedback.devlab502.net", custom_domain = true }
 ]
+
+[env.production.vars]
+UMAMI_SITE_ID = "5aa66ec5-3a45-4449-bb89-17e092da725c"
