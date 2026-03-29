@@ -4,7 +4,7 @@ export const APPS = [
   { id: "29c9f9b9-f6d1-4dbd-a916-620d62a81c0e", name: "BoysAreBack", slug: "boysareback", url: "https://boysareback.devlab502.net", accent: "#f97316", emoji: "🎸", is_admin_only: false },
   { id: "69ad37d0-d5e2-42dc-9c13-e27f86943802", name: "Café LOUIE", slug: "cafelouie", url: "https://cafelouie.devlab502.net", accent: "#92400e", emoji: "📖", is_admin_only: false },
   { id: "6bfd2e52-cd74-4e9e-8a86-a370250bf11f", name: "Countdown", slug: "countdown", url: "https://countdown.devlab502.net", accent: "#f59e0b", emoji: "⏱️", is_admin_only: false },
-  { id: "6d191696-affe-4d02-8417-bd3b4ddec8c7", name: "Ear X-tacy", slug: "earxtacy", url: "https://earxtacy.devlab502.net", accent: "#FF2D55", emoji: "🎵", is_admin_only: false },
+  { id: "6d191696-affe-4d02-8417-bd3b4ddec8c7", name: "Ear X-tacy", slug: "earxtacy", url: "https://earxtacy.devlab502.net", accent: "#FF2D55", emoji: "💿", is_admin_only: false },
   { id: "2bbe47ff-2095-4f1a-aea3-67c72176d496", name: "Favs", slug: "favs", url: "https://favs.devlab502.net", accent: "#eab308", emoji: "⭐", is_admin_only: false },
   { id: "7fe1e92a-3e5e-4857-86b4-9e0fd495583a", name: "Feedback", slug: "feedback", url: "https://feedback.devlab502.net", accent: "#6366f1", emoji: "💬", is_admin_only: true },
   { id: "26c0f7fc-3618-49d5-a3b6-7e4823da8472", name: "FLW Map", slug: "flwmap", url: "https://flwmap.devlab502.net", accent: "#10b981", emoji: "🏠", is_admin_only: false },
