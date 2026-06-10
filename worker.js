@@ -18,6 +18,9 @@ function buildCSP() {
     "font-src fonts.gstatic.com",
     "img-src 'self' cdn.devlab502.net data: blob:",
     "connect-src 'self' https://api.devlab502.net https://analytics.devlab502.net https://*.ingest.us.sentry.io",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "object-src 'none'",
   ].join('; ');
 }
 
@@ -26,6 +29,7 @@ function addSecurityHeaders(headers) {
   headers.set('X-Frame-Options', 'DENY');
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   headers.set('Content-Security-Policy', buildCSP());
 }
 
