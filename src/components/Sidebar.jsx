@@ -135,6 +135,14 @@ function Sidebar({ apps, selectedApp, onSelectApp, collapsed, onToggleCollapse, 
           {!collapsed && <span>Analytics</span>}
         </a>
       )}
+      {isAdmin && !collapsed && (
+        <a
+          href="/cdn-cgi/access/logout"
+          style={{ fontFamily: BODY, fontSize: 12, color: t.sidebarText, opacity: 0.6, padding: "0 16px 8px", textDecoration: "none" }}
+        >
+          Sign out of admin
+        </a>
+      )}
       {!collapsed && (
         <div style={{ fontFamily: BODY, fontSize: 12, color: t.sidebarText, opacity: 0.5, padding: "8px 4px" }}>
           feedback.devlab502.net

@@ -13,7 +13,11 @@ import ChangelogView from './views/ChangelogView';
 
 function FeedbackApp() {
   const { t } = useTheme();
-  const isAdmin = Boolean(import.meta.env.VITE_ADMIN_JWT);
+  // Admin mode = on /admin with a valid Cloudflare Access session (checked by the Worker)
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    api.checkAdmin().then(setIsAdmin);
+  }, []);
 
   const [selectedApp, setSelectedApp] = useState(null);
   const [view, setView] = useState("board");
@@ -23,9 +27,7 @@ function FeedbackApp() {
   const [filters, setFilters] = useState({ search: "", type: "all", status: "all", sort: "newest" });
 
   // API-driven state
-  const [apps, setApps] = useState(
-    isAdmin ? FALLBACK_APPS : FALLBACK_APPS.filter(a => !a.is_admin_only)
-  );
+  const [apps, setApps] = useState(FALLBACK_APPS.filter(a => !a.is_admin_only));
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,11 +48,13 @@ function FeedbackApp() {
     if (params.get('sidebar') === 'collapsed') setSidebarCollapsed(true);
   }, []);
 
-  // Initialize fingerprint and fetch apps on mount
+  // Initialize fingerprint on mount
   useEffect(() => {
-    const fp = api.getFingerprint();
-    setFingerprint(fp);
+    setFingerprint(api.getFingerprint());
+  }, []);
 
+  // Fetch apps on mount, and again once admin mode is confirmed (adds admin-only apps)
+  useEffect(() => {
     api.getApps({ isAdmin })
       .then((data) => {
         if (data && data.length > 0) {
@@ -72,7 +76,7 @@ function FeedbackApp() {
       .catch(() => {
         // Keep fallback apps on error
       });
-  }, []);
+  }, [isAdmin]);
 
   // Fetch posts when view, selectedApp, or filters change
   const fetchPosts = useCallback(async () => {

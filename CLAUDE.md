@@ -30,7 +30,7 @@ C:\Users\sandersh.REACH\OneDrive - Reach of Louisville\devlab502\feedback
 
 - **Base URL**: `https://api.devlab502.net`
 - **API Style**: PostgREST — query syntax uses `?column=eq.value`, `?order=column.desc`, `?or=(col.ilike.*search*,col2.ilike.*search*)`
-- **Auth**: No auth for public reads and anonymous post creation. Admin operations (status changes, deletions) require JWT in Authorization header.
+- **Auth**: No auth for public reads and anonymous post creation. Admin operations go through the Worker (see Admin Authentication).
 - **CORS**: Locked to `https://feedback.devlab502.net` in production Caddyfile.
 - An `api.js` client module exists with all the fetch helpers. Use it — don't write raw fetch calls in components.
 
@@ -165,6 +165,17 @@ The `apps` table has an `is_admin_only` column (boolean, default FALSE).
 - **Admin users**: See all apps. Admin-only apps show a lock icon in the sidebar. Hover any sidebar app to reveal a visibility toggle (eye icon) to change its admin-only status.
 - **When adding a new devlab502 app**: Always INSERT it into the `apps` table on VPS and update `constants.js` FALLBACK_APPS.
 
+## Admin Authentication
+
+Cloudflare Access (Zero Trust), same pattern as ArsenalReportRedux. Replaced the old build-time `VITE_ADMIN_JWT`, which shipped the admin token to every visitor (removed 2026-10-07).
+
+- Admin UI: https://feedback.devlab502.net/admin. Same SPA; admin mode turns on when `/api/admin/whoami` succeeds.
+- Access app "Feedback Admin" gates `/admin` and `/api/admin/*` at the edge (AUD in `worker.js`). It uses the reusable policy "devlab502 admin (sandersd)", one-time PIN, 1-week sessions.
+- Worker `/api/admin/*` re-verifies the `Cf-Access-Jwt-Assertion` JWT, then proxies to PostgREST with `env.ADMIN_JWT` (Worker secret, role `feedback_admin`). The browser never holds a token.
+- Token: 1Password → Automation → "PostgREST feedback_admin JWT"
+- Sign out: `/cdn-cgi/access/logout`
+- Local dev: `npm run dev` has no admin mode (no Worker/Access). Use `wrangler dev` if needed.
+
 ## Bot Protection
 
 Layered approach prioritizing zero user friction:
@@ -274,10 +285,14 @@ cd ~/feedback && docker compose exec -T db pg_dump -U feedback_admin feedback > 
 
 ## Environment Variables
 
-### Frontend (.env.local for dev, Cloudflare Worker vars for prod)
+### Frontend (.env.local for dev)
 ```
 VITE_API_URL=https://api.devlab502.net
-VITE_ADMIN_JWT=<generated JWT for admin operations>
+```
+
+### Worker secrets (production)
+```
+ADMIN_JWT   # PostgREST feedback_admin JWT, used only by the /api/admin proxy
 ```
 
 ### VPS (.env for Docker Compose)

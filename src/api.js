@@ -8,6 +8,7 @@
 // ============================================================
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.devlab502.net';
+const ADMIN_BASE_URL = '/api/admin';
 
 // ── Core fetch helper ────────────────────────────────────────
 
@@ -20,18 +21,15 @@ async function request(path, options = {}) {
     ...headers,
   };
 
-  // For admin operations (changing status, deleting, etc.)
-  if (admin) {
-    const token = import.meta.env.VITE_ADMIN_JWT;
-    if (token) reqHeaders['Authorization'] = `Bearer ${token}`;
-  }
-
   // PostgREST returns single objects with this header
   if (method === 'POST' && !options.returnMany) {
     reqHeaders['Prefer'] = 'return=representation';
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  // Admin operations go through the Worker's /api/admin proxy (same origin),
+  // which is behind Cloudflare Access and attaches the PostgREST admin JWT
+  // server-side. The browser never holds a token.
+  const res = await fetch(`${admin ? ADMIN_BASE_URL : BASE_URL}${path}`, {
     method,
     headers: reqHeaders,
     body: body ? JSON.stringify(body) : undefined,
@@ -52,12 +50,26 @@ async function request(path, options = {}) {
   return data;
 }
 
+// ── Admin session ────────────────────────────────────────────
+
+// True only on /admin with a valid Cloudflare Access session for the admin
+// email. Elsewhere the Access cookie isn't checked, so skip the round trip.
+export async function checkAdmin() {
+  if (!window.location.pathname.startsWith('/admin')) return false;
+  try {
+    const res = await fetch(`${ADMIN_BASE_URL}/whoami`, { credentials: 'same-origin' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // ── Apps ─────────────────────────────────────────────────────
 
 export async function getApps({ isAdmin = false } = {}) {
   let url = '/apps?order=name.asc&is_archived=is.false';
   if (!isAdmin) url += '&is_admin_only=is.false';
-  return request(url);
+  return request(url, { admin: isAdmin });
 }
 
 // ── Admin: update app properties ────────────────────────────
@@ -287,6 +299,7 @@ export function getFingerprint() {
 // ── Export all as a namespace ─────────────────────────────────
 
 export const api = {
+  checkAdmin,
   getApps,
   updateApp,
   getPosts,
