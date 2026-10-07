@@ -21,7 +21,6 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_ADMIN_JWT: ${{ secrets.VITE_ADMIN_JWT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Deploy
