@@ -22,9 +22,7 @@ This is NOT a social platform. No comments, no threads, no user profiles, no sig
 
 ## Local Path
 
-```
-C:\Users\sandersh.REACH\OneDrive - Reach of Louisville\devlab502\feedback
-```
+`devlab502/Feedback/`. The absolute path differs per machine; see the fleet `devlab502/CLAUDE.md`.
 
 ## API Details
 
