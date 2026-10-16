@@ -1,7 +1,3 @@
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
-import manifestJSON from '__STATIC_CONTENT_MANIFEST';
-const assetManifest = JSON.parse(manifestJSON);
-
 // ── Image upload config ──────────────────────────────────────
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -180,33 +176,15 @@ async function handleAdminProxy(request, url, env) {
 }
 
 // ── Static asset serving ─────────────────────────────────────
-async function handleStaticAsset(request, env, ctx) {
-  const event = { request, waitUntil: ctx.waitUntil.bind(ctx) };
-  const options = {
-    ASSET_NAMESPACE: env.__STATIC_CONTENT,
-    ASSET_MANIFEST: assetManifest,
-  };
-
-  try {
-    const response = await getAssetFromKV(event, options);
-    const headers = new Headers(response.headers);
-    addSecurityHeaders(headers);
-    return injectAnalytics(new Response(response.body, { status: response.status, headers }), env);
-  } catch {
-    // SPA fallback — serve index.html for client-side routing
-    try {
-      const fallbackEvent = {
-        request: new Request(`${new URL(request.url).origin}/index.html`, request),
-        waitUntil: ctx.waitUntil.bind(ctx),
-      };
-      const notFoundResponse = await getAssetFromKV(fallbackEvent, options);
-      const headers = new Headers(notFoundResponse.headers);
-      addSecurityHeaders(headers);
-      return injectAnalytics(new Response(notFoundResponse.body, { status: 200, headers }), env);
-    } catch {
-      return new Response('Not Found', { status: 404 });
-    }
-  }
+// Workers Static Assets (binding ASSETS; not KV). Unknown paths get index.html
+// with 200 from not_found_handling (SPA fallback for client-side routing), as
+// the old Workers Sites fallback did. Cache-Control is left as the asset layer
+// sets it (the old handler set none).
+async function handleStaticAsset(request, env) {
+  const asset = await env.ASSETS.fetch(request);
+  const headers = new Headers(asset.headers);
+  addSecurityHeaders(headers);
+  return injectAnalytics(new Response(asset.body, { status: asset.status, headers }), env);
 }
 
 // ── Analytics injection ──────────────────────────────────────
@@ -240,6 +218,6 @@ export default {
     }
 
     // Everything else → static assets (SPA)
-    return handleStaticAsset(request, env, ctx);
+    return handleStaticAsset(request, env);
   },
 };
